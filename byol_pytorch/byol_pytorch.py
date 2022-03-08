@@ -168,10 +168,22 @@ class BYOL(nn.Module):
         augment_fn = None,
         augment_fn2 = None,
         moving_average_decay = 0.99,
-        use_momentum = True
+        use_momentum = True,
+        #adding params for the second network
+        net2,
+        image_size2,
+        hidden_layer2 = -2,
+        projection_size2 = 256,
+        projection_hidden_size2 = 4096,
+        augment2_fn = None,
+        augment2_fn2 = None,
+        moving_average_decay2 = 0.99,
+        use_momentum2 = True,
+
     ):
         super().__init__()
         self.net = net
+        self.net2=net2
 
         # default SimCLR augmentation
 
@@ -198,7 +210,7 @@ class BYOL(nn.Module):
         self.online_encoder = NetWrapper(net, projection_size, projection_hidden_size, layer=hidden_layer)
 
         self.use_momentum = use_momentum
-        self.target_encoder = None
+        #self.target_encoder = None
         self.target_ema_updater = EMA(moving_average_decay)
 
         self.online_predictor = MLP(projection_size, projection_size, projection_hidden_size)
@@ -209,12 +221,32 @@ class BYOL(nn.Module):
 
         # send a mock image tensor to instantiate singleton parameters
         self.forward(torch.randn(2, 3, image_size, image_size, device=device))
+        # Adding initialiser for second network
+        self.augment1 = default(augment_fn, DEFAULT_AUG)
+        self.augment2 = default(augment_fn2, self.augment1)
 
-    @singleton('target_encoder')
+        self.target_encoder = NetWrapper(net2, projection_size, projection_hidden_size, layer=hidden_layer)
+
+        self.use_momentum = use_momentum
+        self.target_encoder = None
+        self.target_ema_updater = EMA(moving_average_decay)
+
+        self.target_encoder = MLP(projection_size, projection_size, projection_hidden_size)
+
+        # get device of network and make wrapper same device
+        device = get_module_device(net2)
+        self.to(device)
+
+        # send a mock image tensor to instantiate singleton parameters
+        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
+
+
+
+    '''@singleton('target_encoder')
     def _get_target_encoder(self):
         target_encoder = copy.deepcopy(self.online_encoder)
         set_requires_grad(target_encoder, False)
-        return target_encoder
+        return target_encoder'''
 
     def reset_moving_average(self):
         del self.target_encoder
@@ -245,7 +277,7 @@ class BYOL(nn.Module):
         online_pred_two = self.online_predictor(online_proj_two)
 
         with torch.no_grad():
-            target_encoder = self._get_target_encoder() if self.use_momentum else self.online_encoder
+            #target_encoder = self._get_target_encoder() if self.use_momentum else self.online_encoder
             target_proj_one, _ = target_encoder(image_one)
             target_proj_two, _ = target_encoder(image_two)
             target_proj_one.detach_()
