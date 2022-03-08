@@ -170,16 +170,7 @@ class BYOL(nn.Module):
         moving_average_decay = 0.99,
         use_momentum = True,
         #adding params for the second network
-        net2,
-        image_size2,
-        hidden_layer2 = -2,
-        projection_size2 = 256,
-        projection_hidden_size2 = 4096,
-        augment2_fn = None,
-        augment2_fn2 = None,
-        moving_average_decay2 = 0.99,
-        use_momentum2 = True,
-
+        net2
     ):
         super().__init__()
         self.net = net
